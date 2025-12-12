@@ -1,22 +1,22 @@
 ```mermaid
-flowchart LR
-  %% Edge and ingress
-  user[End User / Client] --> ga[AWS Global Accelerator]
-  ga --> cf[Amazon CloudFront]
-  cf -->|API| apigw[API Gateway (HTTP)]
-  cf -->|Static UI| s3ui[S3 Static Website]
+graph LR
+  %% Edge and global routing
+  user["End User / Client"] --> ga["AWS Global Accelerator"]
+  ga --> cf["Amazon CloudFront"]
 
-  %% Ingress to VPC / cluster
-  apigw --> alb[Application Load Balancer]
-  alb --> lattice[VPC Lattice Service Network]
+  cf -->|API traffic| apigw["Amazon API Gateway (HTTP APIs)"]
+  cf -->|Static UI| s3ui["S3 Static Website Hosting"]
 
-  %% EKS services (multi-AZ)
-  subgraph EKS[Amazon EKS Cluster]
-    api[API Service]
-    feature[Feature Service]
-    optimizer[Optimizer Service]
-    ingest[Ingest Service]
-    adot[ADOT Collector]
+  apigw --> alb["Application Load Balancer"]
+  alb --> lattice["Amazon VPC Lattice Service Network"]
+
+  %% EKS cluster and services
+  subgraph eks["Amazon EKS Cluster (multi-AZ)"]
+    api["API Service"]
+    feature["Feature Service"]
+    optimizer["Optimizer Service"]
+    ingest["Ingest Service"]
+    adot["ADOT Collector"]
   end
 
   lattice --> api
@@ -24,28 +24,32 @@ flowchart LR
   lattice --> optimizer
   lattice --> ingest
 
-  %% State and events
-  api --> redis[(ElastiCache for Redis)]
+  %% Data stores and streaming
+  api --> redis[(Amazon ElastiCache for Redis)]
   feature --> redis
   optimizer --> redis
-  ingest --> s3[S3 Artifacts & Snapshots]
-  api --> aurora[(Aurora PostgreSQL)]
+
+  api --> aurora[(Amazon Aurora PostgreSQL)]
   feature --> aurora
   optimizer --> aurora
   ingest --> aurora
+
   ingest --> msk[(Amazon MSK Topics)]
   optimizer --> msk
 
+  ingest --> s3["S3 Snapshots & Artifacts"]
+  cf --> s3
+
   %% Observability
-  adot --> xray[AWS X-Ray]
-  adot --> amp[Amazon Managed Service for Prometheus]
-  amp --> amg[Amazon Managed Grafana]
+  adot --> xray["AWS X-Ray"]
+  adot --> cw["CloudWatch / AMP"]
+  cw --> amg["Amazon Managed Grafana"]
 
-  %% Security (edge)
-  cf --- waf[AWS WAF]
-  cf --- acm[ACM Certificates]
+  %% Security and certificates at edge (dashed)
+  cf -.-> waf["AWS WAF"]
+  cf -.-> acm["ACM TLS Certificates"]
 
-  %% Notes
-  classDef store fill:#f7f7f7,stroke:#333,stroke-width:1px
-  class s3,aurora,redis,msk store
+  %% Styling (optional)
+  classDef store fill:#f6f6f6,stroke:#333,stroke-width:1px;
+  class redis,aurora,msk,s3,s3ui store;
 ```
